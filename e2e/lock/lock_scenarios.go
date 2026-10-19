@@ -31,6 +31,10 @@ type lockScenario struct {
 	launchArguments  string
 	runtimeArtifacts []runtimeArtifactExpectation
 	packages         []packageExpectation
+
+	// pending marks a scenario whose core Lucy cannot install yet. The suite
+	// prints the blocker and keeps the run green instead of failing it.
+	pending string
 }
 
 type runtimeArtifactExpectation struct {
@@ -114,6 +118,57 @@ var lockScenarios = map[string]lockScenario{
 			},
 		},
 	},
+	// Pre-1.18 Forge installers embed no launcher scripts; the forge-installer
+	// bootstrap only completes the modern layout, so these scenarios stay
+	// pending until legacy installs land.
+	"forge-1122": {
+		sandbox:      "forge-1122",
+		pending:      "pre-1.18 launch layout: the installer embeds no launcher scripts",
+		distribution: "forge",
+		minecraft:    "1.12.2",
+		coreVersion:  "14.23.5.2859",
+		provider:     "forge",
+		projectID:    "forge",
+		filename:     "forge-1.12.2-14.23.5.2859-installer.jar",
+		bootstrap:    "forge-installer",
+		coreFixture:  "forge-1.12.2-14.23.5.2859-installer.jar",
+	},
+	"forge-1144": {
+		sandbox:      "forge-1144",
+		pending:      "pre-1.18 launch layout: the installer embeds no launcher scripts",
+		distribution: "forge",
+		minecraft:    "1.14.4",
+		coreVersion:  "28.2.26",
+		provider:     "forge",
+		projectID:    "forge",
+		filename:     "forge-1.14.4-28.2.26-installer.jar",
+		bootstrap:    "forge-installer",
+		coreFixture:  "forge-1.14.4-28.2.26-installer.jar",
+	},
+	"forge-1165": {
+		sandbox:      "forge-1165",
+		pending:      "pre-1.18 launch layout: the installer embeds no launcher scripts",
+		distribution: "forge",
+		minecraft:    "1.16.5",
+		coreVersion:  "36.2.34",
+		provider:     "forge",
+		projectID:    "forge",
+		filename:     "forge-1.16.5-36.2.34-installer.jar",
+		bootstrap:    "forge-installer",
+		coreFixture:  "forge-1.16.5-36.2.34-installer.jar",
+	},
+	"forge-1710": {
+		sandbox:      "forge-1710",
+		pending:      "legacy installer profile and pre-1.18 launch layout",
+		distribution: "forge",
+		minecraft:    "1.7.10",
+		coreVersion:  "10.13.4.1614",
+		provider:     "forge",
+		projectID:    "forge",
+		filename:     "forge-1.7.10-10.13.4.1614-1.7.10-installer.jar",
+		bootstrap:    "forge-installer",
+		coreFixture:  "forge-1.7.10-10.13.4.1614-1.7.10-installer.jar",
+	},
 	"forge-1201": {
 		sandbox:         "forge-1201",
 		distribution:    "forge",
@@ -156,6 +211,12 @@ func executeScenario(ctx context.Context, binary, sandboxes, id string) (resultE
 	scenario, ok := lockScenarios[id]
 	if !ok {
 		return fmt.Errorf("unknown install scenario %q", id)
+	}
+	if scenario.pending != "" {
+		// Pending scenarios are registered but not runnable yet: report the
+		// blocker and keep the run green instead of failing on it.
+		fmt.Printf("skip %s: %s\n", id, scenario.pending)
+		return nil
 	}
 	oracle := ""
 	if scenario.sandbox != "" {
